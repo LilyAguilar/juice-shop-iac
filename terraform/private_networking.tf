@@ -1,3 +1,12 @@
+resource "aws_default_security_group" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
 resource "aws_subnet" "private" {
   count                   = length(var.private_subnet_cidrs)
   vpc_id                  = aws_vpc.main.id
