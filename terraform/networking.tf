@@ -113,6 +113,7 @@ resource "aws_security_group" "ecs" {
 }
 
 resource "aws_lb" "juice_shop" {
+  # checkov:skip=CKV_AWS_91:EXC-001. Riesgo aceptado por la propietaria solo para análisis estático sin despliegue. Habilitar registros antes de desplegar. Vence 2026-12-24.
   drop_invalid_header_fields = true
   enable_deletion_protection = true
   name               = "${var.project_name}-alb"
