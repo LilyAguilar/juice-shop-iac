@@ -66,6 +66,7 @@ resource "aws_security_group" "alb" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
+    description = "HTTPS from clients"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -73,10 +74,11 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "Application and health checks in private ECS subnets"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = var.private_subnet_cidrs
   }
 
   tags = {
@@ -92,6 +94,7 @@ resource "aws_security_group" "ecs" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
+    description     = "Application traffic from the ALB"
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
@@ -99,10 +102,19 @@ resource "aws_security_group" "ecs" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTPS to ECR, S3 and CloudWatch through NAT"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "NFS to EFS mount targets in the public subnets"
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = var.public_subnet_cidrs
   }
 
   tags = {
@@ -211,18 +223,14 @@ resource "aws_security_group" "efs" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
+    description     = "NFS from the ECS tasks"
     from_port       = 2049
     to_port         = 2049
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs.id]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  egress = []
 
   tags = {
     Name        = "${var.project_name}-efs-sg"
@@ -233,7 +241,8 @@ resource "aws_security_group" "efs" {
 
 resource "aws_efs_file_system" "juice_shop_data" {
   creation_token = "${var.project_name}-sqlite-data"
-  encrypted      = var.efs_encrypted
+  encrypted      = true
+  kms_key_id     = aws_kms_key.efs.arn
 
   performance_mode = "generalPurpose"
   throughput_mode  = "bursting"

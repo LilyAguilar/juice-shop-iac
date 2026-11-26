@@ -32,6 +32,19 @@ resource "aws_ecs_cluster" "juice_shop" {
   }
 }
 
+locals {
+  ecs_writable_paths = {
+    application_data = "/juice-shop/data"
+    frontend         = "/juice-shop/frontend/dist/frontend"
+    ftp              = "/juice-shop/ftp"
+    i18n             = "/juice-shop/i18n"
+    logs             = "/juice-shop/logs"
+    metadata         = "/juice-shop/.well-known"
+    temporary        = "/tmp"
+    uploads          = "/juice-shop/uploads"
+  }
+}
+
 resource "aws_ecs_task_definition" "juice_shop" {
   family                   = "${var.project_name}-task"
   network_mode             = "awsvpc"
@@ -42,9 +55,10 @@ resource "aws_ecs_task_definition" "juice_shop" {
 
   container_definitions = jsonencode([
     {
-      name      = var.project_name
-      image     = "${var.ecr_repository_url}:${var.container_tag}"
-      essential = true
+      name                   = var.project_name
+      image                  = "${var.ecr_repository_url}:${var.container_tag}"
+      essential              = true
+      readonlyRootFilesystem = true
       portMappings = [
         {
           containerPort = 3000
@@ -58,13 +72,19 @@ resource "aws_ecs_task_definition" "juice_shop" {
           value = var.node_env
         }
       ]
-      mountPoints = [
+      mountPoints = concat([
+        for name, path in local.ecs_writable_paths : {
+          sourceVolume  = name
+          containerPath = path
+          readOnly      = false
+        }
+      ], [
         {
           sourceVolume  = "sqlite-data"
           containerPath = "/juice-shop/data/sqlite"
           readOnly      = false
         }
-      ]
+      ])
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -75,6 +95,13 @@ resource "aws_ecs_task_definition" "juice_shop" {
       }
     }
   ])
+
+  dynamic "volume" {
+    for_each = local.ecs_writable_paths
+    content {
+      name = volume.key
+    }
+  }
 
   volume {
     name = "sqlite-data"
@@ -128,8 +155,9 @@ resource "aws_ecs_service" "juice_shop" {
 }
 
 resource "aws_cloudwatch_log_group" "juice_shop" {
-  name              = "/ecs/${var.project_name}"
+  name              = local.log_group_names.ecs
   retention_in_days = 365
+  kms_key_id        = aws_kms_key.logs.arn
 
   tags = {
     Project     = var.project_name
