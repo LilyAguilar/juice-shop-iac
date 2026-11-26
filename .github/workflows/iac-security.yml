@@ -3,7 +3,7 @@ name: Seguridad IaC
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
 
 permissions:
   contents: read
@@ -29,13 +29,12 @@ jobs:
       - name: Preparar archivos para el escaneo
         run: |
           mkdir -p "$RUNNER_TEMP/iac"
-          cp -r terraform Dockerfile politicas "$RUNNER_TEMP/iac/"
+          cp -r terraform Dockerfile "$RUNNER_TEMP/iac/"
 
       - name: Generar SARIF
         run: |
           cd "$RUNNER_TEMP/iac"
           checkov -d . --framework terraform dockerfile \
-            --external-checks-dir politicas \
             --output sarif --output-file-path reportes --soft-fail
           test -s reportes/results_sarif.sarif
 
@@ -50,4 +49,4 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/iac"
           checkov -d . --framework terraform dockerfile \
-            --external-checks-dir politicas --compact --quiet
+            --compact --quiet
