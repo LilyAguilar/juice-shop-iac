@@ -69,9 +69,3 @@ variable "container_tag" {
   type        = string
   default     = "latest"
 }
-
-variable "efs_encrypted" {
-  description = "Enable encryption at rest for EFS"
-  type        = bool
-  default     = true
-}
