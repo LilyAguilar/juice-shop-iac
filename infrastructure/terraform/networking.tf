@@ -120,6 +120,7 @@ resource "aws_security_group" "ecs" {
 }
 
 resource "aws_lb" "juice_shop" {
+  enable_deletion_protection = true
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
