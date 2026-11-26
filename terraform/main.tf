@@ -104,9 +104,9 @@ resource "aws_ecs_service" "juice_shop" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = aws_subnet.private[*].id
     security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
@@ -115,7 +115,11 @@ resource "aws_ecs_service" "juice_shop" {
     container_port   = 3000
   }
 
-  depends_on = [aws_lb_listener.https]
+  depends_on = [
+    aws_efs_mount_target.juice_shop_data,
+    aws_lb_listener.https,
+    aws_route_table_association.private,
+  ]
 
   tags = {
     Project     = var.project_name
