@@ -114,6 +114,7 @@ resource "aws_security_group" "ecs" {
 
 resource "aws_lb" "juice_shop" {
   drop_invalid_header_fields = true
+  enable_deletion_protection = true
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
