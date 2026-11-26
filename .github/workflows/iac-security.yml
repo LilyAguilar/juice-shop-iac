@@ -29,12 +29,38 @@ jobs:
       - name: Preparar archivos para el escaneo
         run: |
           mkdir -p "$RUNNER_TEMP/iac"
-          cp -r terraform Dockerfile "$RUNNER_TEMP/iac/"
+          cp -r terraform Dockerfile politicas "$RUNNER_TEMP/iac/"
+
+      - name: Verificar política de retención
+        run: |
+          cd "$RUNNER_TEMP/iac"
+          sample="$(mktemp -d "$RUNNER_TEMP/retention-policy.XXXXXX")"
+          for days in 30 7; do
+            cat > "$sample/main.tf" <<EOF
+          resource "aws_cloudwatch_log_group" "policy_test" {
+            name              = "/iac/policy-test"
+            retention_in_days = $days
+          }
+          EOF
+            status=0
+            output="$(checkov -d "$sample" --framework terraform \
+              --external-checks-dir politicas --check CKV2_ORG_1 --compact)" || status=$?
+            echo "CKV2_ORG_1 con retención de $days días (código $status)"
+            echo "$output"
+            if [[ "$days" == 30 ]]; then
+              test "$status" -eq 0
+              grep -Fq 'PASSED for resource: aws_cloudwatch_log_group.policy_test' <<< "$output"
+            else
+              test "$status" -eq 1
+              grep -Fq 'FAILED for resource: aws_cloudwatch_log_group.policy_test' <<< "$output"
+            fi
+          done
 
       - name: Generar SARIF
         run: |
           cd "$RUNNER_TEMP/iac"
           checkov -d . --framework terraform dockerfile \
+            --external-checks-dir politicas \
             --output sarif --output-file-path reportes --soft-fail
           test -s reportes/results_sarif.sarif
 
@@ -49,4 +75,5 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/iac"
           checkov -d . --framework terraform dockerfile \
+            --external-checks-dir politicas \
             --compact --quiet
