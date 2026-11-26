@@ -1,0 +1,11 @@
+metadata:
+  id: CKV2_ORG_1
+  name: Los grupos de logs de CloudWatch conservan registros al menos 30 días
+  category: LOGGING
+definition:
+  cond_type: attribute
+  resource_types:
+    - aws_cloudwatch_log_group
+  attribute: retention_in_days
+  operator: greater_than_or_equal
+  value: 30
